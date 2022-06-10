@@ -113,17 +113,23 @@ double* leggiOperazione(){
     // Se vengono letti correttamente i 3 parametri interessati e quindi non ci sono problemi durante l'input...
     if (scanf("%lf %c %lf", &primoOperando, &operatore, &secondoOperando) == 3){
         
-        /*  
+       // Se sono stati forniti esattamente 3 parametri e non è rimasto nulla sul buffer di input da leggenre
+       if(getchar() == '\n'){
+           if ((operatore == '+' || operatore == '-' || operatore == '*' || operatore == '/') ){
+                // Formattazione dell'operazione nel formato [operatore, operando, operando]
+                operazioneFormattata[0] = operatore;
+                operazioneFormattata[1] = primoOperando;
+                operazioneFormattata[2] = secondoOperando;
+           }
+       } else 
+            // Se c'è ancora qualche carattere nel buffer di input rimuovilo...
+            while(getchar() != '\n');
+
+         /*  
             Se l'operazione non è una di quelle consentite oppure c'è qualche altro carattere 
             nel formato dell'operazione, restituisci la struttura vuota
         */
-        if ((operatore != '+' && operatore != '-' && operatore != '*' && operatore != '/') || getchar() != '\n')
-            return operazioneFormattata;
-
-        // Formattazione dell'operazione nel formato [operatore, operando, operando]
-        operazioneFormattata[0] = operatore;
-        operazioneFormattata[1] = primoOperando;
-        operazioneFormattata[2] = secondoOperando;
+        return operazioneFormattata;
     
     } else {
         // Prendo da input la stringa rimasta nel buffer
