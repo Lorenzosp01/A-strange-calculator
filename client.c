@@ -8,6 +8,8 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <time.h>
+#define PORTA 9040
+#define INDIRIZZO_IP "127.0.0.1"
 /* TODO:
     - se il server non è disponibile non bisogna nemmeno chiedere l'operazione
 */
@@ -83,6 +85,8 @@ int main(int argc, char const *argv[])
                     }  
                 }  
             }
+        } else {
+            printf("Il server si è interrotto inaspettatamente\n");
         }
         // Alla fine della comunicazione viene chiuso il socket
         if(close(clientSocket) != 0){
@@ -159,9 +163,9 @@ int connessioneServer(){
         serverDescriptor.sin_family = AF_INET;
         /* Salva l'indirizzio IP del server all'interno del campo s_addr della struttura sin_addr 
            che si trova nella struttura sockaddr_in */
-        serverDescriptor.sin_addr.s_addr = inet_addr("127.0.0.1");
-        // Il server ascolta sulla porta 9040
-        serverDescriptor.sin_port = htons(9040);
+        serverDescriptor.sin_addr.s_addr = inet_addr(INDIRIZZO_IP);
+        // Il server ascolta su PORTA
+        serverDescriptor.sin_port = htons(PORTA);
 
         printf("Connessione al server...\n"); 
         // Se la connessione al socket con l'indirizzo specificato nella struttura avviene con successo...

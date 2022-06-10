@@ -10,7 +10,8 @@
 #include <time.h>
 #include <math.h>
 #include <pthread.h>
-#define CLIENTS 2
+#define MAX_CLIENTS 10
+#define PORTA 9040
 
 // Puntatore al file di log su cui scrivere le varie operazioni effettuate
 FILE* logFile = NULL;
@@ -51,9 +52,9 @@ typedef struct {
 } clientDescriptor;
 
 // Vettore che si occupa di gestire le informazioni dei thread quando si connettono e quando si disconnettono
-clientDescriptor *clientsInfo[CLIENTS];
-// Numero totale dei client connessi
-int clients = CLIENTS;
+clientDescriptor *clientsInfo[MAX_CLIENTS];
+// Viene decrementata di un'unità ad ogni client che si connette
+int clients = MAX_CLIENTS;
 /**
  * @brief Gestisce la comunicazione con il client, il calcolo dell'operazione, la scrittura sul file di log delle operazioni richieste
  *  
@@ -144,8 +145,8 @@ int main(int argc, char const *argv[])
 {
     // Socket che rimanrrà in ascolto per accettare connessioni
     int serverSocket = -1;
-    // Inizializzo il socket con numero di client nella coda pari a CLIENTS
-    serverSocket = initSocket(CLIENTS);
+    // Inizializzo il socket con numero di client nella coda pari a MAX_CLIENTS
+    serverSocket = initSocket(MAX_CLIENTS);
 
     // Se il socket è stato creato con successo...
     if (serverSocket != -1)
@@ -181,7 +182,7 @@ int main(int argc, char const *argv[])
                         } 
 
                         // Controllo dov'è disponibile una locazione da allocare per salvare le informazioni del socket
-                        for(int c = 0; c < CLIENTS; c++){
+                        for(int c = 0; c < MAX_CLIENTS; c++){
                             if(clientsInfo[c] == NULL){
                                 // Alloco lo spazio per salvare le informazioni
                                 clientsInfo[c] = malloc(sizeof(clientDescriptor));
@@ -248,7 +249,7 @@ int initSocket(int numberOfClients){
         // La famiglia degli indirizzi è IPv4
         serverDescriptor.sin_family = AF_INET;
         // La porta sulla quale avviene l'ascolto è la 9040
-        serverDescriptor.sin_port = htons(9040);
+        serverDescriptor.sin_port = htons(PORTA);
         // L'ascolto avviene su tutte l'interfacce locali del server
         serverDescriptor.sin_addr.s_addr = inet_addr("0.0.0.0"); // INADDR_ANY è la macro
 
@@ -256,7 +257,7 @@ int initSocket(int numberOfClients){
         if(bind(serverSocket, (struct sockaddr*)&serverDescriptor, sizeof(serverDescriptor)) != -1)
         {   
             // Se la preparazione per accettare le connessioni di numberOfClients avviene con successo, restituisci il socket creato
-            if (listen(serverSocket, CLIENTS) != -1)
+            if (listen(serverSocket, MAX_CLIENTS) != -1)
                 return serverSocket;
         }
         else 
