@@ -126,7 +126,9 @@ double* leggiOperazione(){
         operazioneFormattata[2] = secondoOperando;
     
     } else {
+        // Prendo da input la stringa rimasta nel buffer
         scanf("%s", uscita);
+        // Se l'utente vuole uscire...
         if (!strcmp(uscita, "stop")){
             printf("Hai deciso di terminare la comunicazione\n");
             free(uscita);
