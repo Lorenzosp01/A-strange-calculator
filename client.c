@@ -113,7 +113,7 @@ double* leggiOperazione(){
     // Se vengono letti correttamente i 3 parametri interessati e quindi non ci sono problemi durante l'input...
     if (scanf("%lf %c %lf", &primoOperando, &operatore, &secondoOperando) == 3){
         
-       // Se sono stati forniti esattamente 3 parametri e non è rimasto nulla sul buffer di input da leggenre
+       // Se sono stati forniti esattamente 3 parametri e non è
        if(getchar() == '\n'){
            if ((operatore == '+' || operatore == '-' || operatore == '*' || operatore == '/') ){
                 // Formattazione dell'operazione nel formato [operatore, operando, operando]
