@@ -10,17 +10,16 @@
 #include <time.h>
 #include <math.h>
 #include <pthread.h>
-#define MAX_CLIENTS 10
-#define PORTA 9040
+#define MAX_CLIENTS 2 // numero massimo di client che possono inviare operazioni
+#define PORTA 9040 // porta su cui ascolta il server
 
-// Puntatore al file di log su cui scrivere le varie operazioni effettuate
-FILE* logFile = NULL;
-// Semaforo che gestisce l'accesso alla sezione critica per la scrittura concorrente sul file di log
-pthread_mutex_t sem;
-// Semaforo che gestisce l'accesso alla sezione critica per modificare la condition
-pthread_mutex_t semCond;
-// Condition per gestire la disconessione di un client e l'avvio di un nuovo trhead
-pthread_cond_t condition;
+/** 
+ *  ---- DESCRIZIONE ----
+ *  Applicazione che si occupa di ricevere connessioni TCP in ingresso e con le quali
+ *  vengono scambiate operazioni da calcolare e di cui bisogna restituire il risultato al mittente.
+ *  Per ogni coppia operazione - mittente, l'applicazione aggiorna un file di log.
+ */
+
 /**
  * @brief Dato il messaggio ricevuto, viene effettuata l'operazione specificata con i due operandi forniti e restituito il messaggio per il client
  * 
@@ -38,23 +37,29 @@ double* calcolaRisultato(double operazione[]);
  */
 int initSocket(int numberOfClients);
 
+// Puntatore al file di log su cui scrivere le varie operazioni effettuate
+FILE* logFile = NULL;
+// Semaforo che gestisce l'accesso alla sezione critica per la scrittura concorrente sul file di log
+pthread_mutex_t sem;
+// Semaforo che gestisce l'accesso alla sezione critica per modificare la condition
+pthread_mutex_t semCond;
+// Condition per gestire la disconessione di un client e l'avvio di un nuovo trhead
+pthread_cond_t condition;
+
 /*
-    Struttura dati che descrive le informazioni che riguardano il socket di un client  
-*/
-/* TODO: 
-    - i thread mandano un messaggio se il client può inviare l'operazione
-    - gestire la chiusura inaspettata del server con l'invio di un operazione non valida
+    Struttura dati che descrive le informazioni che riguardano il socket di un client e la gestione dei thread
 */
 typedef struct {
-    int socket;
-    struct sockaddr_in addr;
-    int index;
+    int socket; // socket su cui inviare la risposta
+    struct sockaddr_in addr; // struttura dell'indirizzo del client
+    int index; // indice assegnato al thread e riguardante il vettore della pool dei thread 
 } clientDescriptor;
 
 // Vettore che si occupa di gestire le informazioni dei thread quando si connettono e quando si disconnettono
 clientDescriptor *clientsInfo[MAX_CLIENTS];
 // Viene decrementata di un'unità ad ogni client che si connette
 int clients = MAX_CLIENTS;
+
 /**
  * @brief Gestisce la comunicazione con il client, il calcolo dell'operazione, la scrittura sul file di log delle operazioni richieste
  *  
@@ -95,7 +100,10 @@ void comunicazione(clientDescriptor *clientInfo) {
             // Se la fputs restituisce EOF allora ci sono stati errori in scrittura...
             if (fputs(outputLog, logFile) == EOF){    
                 printf("Errore durante la scrittura su file");
-                // "Forza" la scrittura del buffer sullo standard output
+                /*  Viene forzata la scrittura del buffer sullo standard output
+                    in modo da non creare stampe casuali tra i vari thread sullo schermo
+                    dovuti al buffering del output
+                */
                 fflush(stdout);
             } else 
                 // "Forza" la scrittura del buffer sul file di log
@@ -104,7 +112,7 @@ void comunicazione(clientDescriptor *clientInfo) {
             // Se l'uscita dalla zona critica non avviene con successo vi è un errore...
             if (pthread_mutex_unlock(&sem) != 0) {
                 printf("Errore nel unlock del mutex");
-                // Forza la scrittura del buffer sullo standard output
+                // Forza la scrittura dal buffer sullo standard output
                 fflush(stdout);
             }
         } else 
@@ -119,6 +127,8 @@ void comunicazione(clientDescriptor *clientInfo) {
         risultatoFormattato[1] = invioRisposta.tv_sec + invioRisposta.tv_nsec / 1000000000.0;
         // Scrivo sul socket la risposta
         write(clientInfo -> socket, risultatoFormattato, sizeof(double) * 3);
+
+        free(risultatoFormattato);
     }
     
     // Chiude il socket di comunicazione con il client
@@ -126,7 +136,7 @@ void comunicazione(clientDescriptor *clientInfo) {
         printf("Comunicazione con il client chiusa\n");
         fflush(stdout); 
 
-        // Libero lo spazio dalle informazioni del client che si è disconnetto
+        // Libero lo spazio dalle informazioni del client che si è disconnesso
         free(clientsInfo[clientInfo -> index]);
         clientsInfo[clientInfo -> index] = NULL;
 
@@ -185,7 +195,7 @@ int main(int argc, char const *argv[])
                         for(int c = 0; c < MAX_CLIENTS; c++){
                             if(clientsInfo[c] == NULL){
                                 // Alloco lo spazio per salvare le informazioni
-                                clientsInfo[c] = malloc(sizeof(clientDescriptor));
+                                clientsInfo[c] = (clientDescriptor *) malloc(sizeof(clientDescriptor));
                                 // Salvo le informazioni necessarie
                                 clientsInfo[c] -> index = c;
                                 clientsInfo[c] -> socket = sockApp;

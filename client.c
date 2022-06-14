@@ -8,11 +8,14 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <time.h>
-#define PORTA 9040
-#define INDIRIZZO_IP "127.0.0.1"
-/* TODO:
-    - se il server non è disponibile non bisogna nemmeno chiedere l'operazione
-*/
+#define PORTA 9040 // porta su cui ascolta il server
+#define INDIRIZZO_IP "127.0.0.1" // indirizzo su cui ascolta il server
+
+/** 
+ *  ---- DESCRIZIONE ----
+ *  Applicazione che si occupa di effetturare una connessione TCP con un server e chiedere che
+ *  vengano calcolate delle operazioni tra numeri reali per poi visualizzarne il risultato 
+ */
 
 /**
  * Viene letta la stringa dell'operazione da tastiera e viene formattata secondo le specifiche
@@ -55,19 +58,18 @@ int main(int argc, char const *argv[])
         printf("In attesa di poter effettuare operazioni...\n");
         // Se il server non invia nulla...
         if (read(clientSocket, &conferma, sizeof(int)) != 0) {
-            if (conferma == 0){
+            if (conferma == 0) {
                 // Leggi la stringa da tastiera e formattata
                 // Finchè l'utente decide di scrivere qualcosa e non terminare la comunicazione...
                 while ((operazioneFormattata = leggiOperazione()) != NULL){
-                    // Controllo se l'operazione è stata letta correttamente...
+                    // Controllo se l'operazione è stata letta correttamente (se non lo è stato allora è semplicemente vuota)...
                     if(*operazioneFormattata == 0){
                         printf("E' stato inserito un formato di operazione non corretto, riprova \n");
                     } else{
                         // Invio l'operazione sul socket sottoforma di vettore di double
                         // Se non sono stati spediti correttamente il numero di byte necessario allora si è verificato un problema
                         if(write(clientSocket, operazioneFormattata, dimensioneFormato) != dimensioneFormato) {
-                            printf("Errore durante la scrittura dell'operazione sul socket\n");
-                            fflush(stdout);    
+                            printf("Errore durante la scrittura dell'operazione sul socket\n");    
                             // Non è più possibile inviare operazioni
                             break;
                         } 
@@ -82,19 +84,21 @@ int main(int argc, char const *argv[])
                             // Non è più possibile inviare operazioni    
                             break;
                         }
-                    }  
+                    }
+                    // Libero lo spazio di memoria precedentemente allocato nell'heap
+                    free(operazioneFormattata);
+                    free(risultato);  
                 }  
             }
         } else {
             printf("Il server si è interrotto inaspettatamente\n");
         }
+
         // Alla fine della comunicazione viene chiuso il socket
-        if(close(clientSocket) != 0){
+        if(close(clientSocket) != 0)
             printf("Errore durante la chiusura del socket\n");
-        } else {
+        else 
             printf("Chiusa la comunicazione\n");
-        }
-        fflush(stdout);    
     }
         
     return 0;
@@ -105,14 +109,16 @@ double* leggiOperazione(){
     printf("----- INVIO OPERAZIONE ----\n");
     printf("Digita l'operazione che desideri effettuare nel formato <Operando> [+-*\\] <Operando> \n");
     printf("Digita \"stop\" per uscire\nMessaggio: ");
-    fflush(stdout);
-    // ---- INIZIALIZZAZIONE ----    
+    // ---- INIZIALIZZAZIONE ----
+    // Variabili utilizzate solo per salvare l'input    
     double primoOperando, secondoOperando;
     char operatore;
+    // Alloco la memoria per il formato dell'operazione e la setto a 0
     double *operazioneFormattata = (double *) malloc(3 * sizeof(double));
     memset(operazioneFormattata, 0, 3 * sizeof(double));
 
-    char* uscita = malloc(5);
+    // Variabile per salvare l'eventuale segnale di stop alla comunicazione voluto dall'utente
+    char* uscita = (char *) malloc(5);
     // ---- LOGICA ----
     // Se vengono letti correttamente i 3 parametri interessati e quindi non ci sono problemi durante l'input...
     if (scanf("%lf %c %lf", &primoOperando, &operatore, &secondoOperando) == 3){
@@ -186,7 +192,7 @@ int connessioneServer(){
 char *parsingRisposta(double rispostaFormattata[]){
  
     // Alloco lo spazio necessario per concatenare le due stringhe di interfaccia insieme a i due valori calcolati
-    char* risposta = (char *)malloc(80);
+    char* risposta = (char *) malloc(80);
 
     // Trasformo in una stringa il risultato dell'operazione calcolata, calcolo il tempo di servizio e lo aggiungo alla stringa
     sprintf(risposta, "Risultato operazione = %.6g, tempo di servizio: %lf secondi\n", rispostaFormattata[2], rispostaFormattata[1] - rispostaFormattata[0]);
