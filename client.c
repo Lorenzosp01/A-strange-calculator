@@ -56,15 +56,16 @@ int main(int argc, char const *argv[])
         // In attesa di ricevere la conferma dal server...
         int conferma = -1, n;
         printf("In attesa di poter effettuare operazioni...\n");
-        // Se il server non invia nulla...
+        // Se il server non si interrompe prima di inviare la conferma...
         if (read(clientSocket, &conferma, sizeof(int)) != 0) {
+            // Se il server ha inviato effetivamente la conferma aspettata...
             if (conferma == 0) {
-                // Leggi la stringa da tastiera e formattata
-                // Finchè l'utente decide di scrivere qualcosa e non terminare la comunicazione...
+                // Leggi la stringa da tastiera e formattala
+                // Finchè l'utente decide di scrivere qualcosa e di non terminare la comunicazione...
                 while ((operazioneFormattata = leggiOperazione()) != NULL){
                     // Controllo se l'operazione è stata letta correttamente (se non lo è stato allora è semplicemente vuota)...
                     if(*operazioneFormattata == 0){
-                        printf("E' stato inserito un formato di operazione non corretto, riprova \n");
+                        printf("E' stato inserito un formato di operazione non corretto, riprova \n\n");
                     } else{
                         // Invio l'operazione sul socket sottoforma di vettore di double
                         // Se non sono stati spediti correttamente il numero di byte necessario allora si è verificato un problema
@@ -84,10 +85,10 @@ int main(int argc, char const *argv[])
                             // Non è più possibile inviare operazioni    
                             break;
                         }
-                    }
-                    // Libero lo spazio di memoria precedentemente allocato nell'heap
-                    free(operazioneFormattata);
-                    free(risultato);  
+                        // Libero lo spazio di memoria precedentemente allocato nell'heap
+                        free(operazioneFormattata);
+                        free(risultato); 
+                    }                     
                 }  
             }
         } else {
@@ -127,8 +128,8 @@ double* leggiOperazione(){
        if(getchar() == '\n'){
            if ((operatore == '+' || operatore == '-' || operatore == '*' || operatore == '/') ){
                 // Formattazione dell'operazione nel formato [operatore, operando, operando]
-                operazioneFormattata[0] = operatore;
-                operazioneFormattata[1] = primoOperando;
+                operazioneFormattata[0] = operatore; // L'operatore viene salvato come double ma dopo castato a char dal server
+                operazioneFormattata[1] = primoOperando; 
                 operazioneFormattata[2] = secondoOperando;
            }
        } else 

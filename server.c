@@ -12,30 +12,14 @@
 #include <pthread.h>
 #define MAX_CLIENTS 2 // numero massimo di client che possono inviare operazioni
 #define PORTA 9040 // porta su cui ascolta il server
+#define INTERFACCIA_ASCOLTO "0.0.0.0"
 
 /** 
  *  ---- DESCRIZIONE ----
- *  Applicazione che si occupa di ricevere connessioni TCP in ingresso e con le quali
- *  vengono scambiate operazioni da calcolare e di cui bisogna restituire il risultato al mittente.
- *  Per ogni coppia operazione - mittente, l'applicazione aggiorna un file di log.
+ *  Applicazione che si occupa di ricevere connessioni TCP in ingresso e attraverso le quali
+ *  si ricevono operazioni da calcolare e di cui bisogna restituire il risultato al mittente.
+ *  Ogni volta che viene ricevuta un'operazione da calcolare, l'applicazione aggiorna un file di log.
  */
-
-/**
- * @brief Dato il messaggio ricevuto, viene effettuata l'operazione specificata con i due operandi forniti e restituito il messaggio per il client
- * 
- * @param operazione vettore che contiene gli operandi e l'operazione da svolgere
- * @return vettore contenente il risultato dell'operazione e i due timestamp
- */
-double* calcolaRisultato(double operazione[]);
-
-/**
- * @brief Inizializza le strutture dati necessarie per l'apertura del socket e viene restiuito un socket in caso di successo, -1 altrimenti
- * 
- * @param numberOfClients numero massimo di client da mettere in coda
- 
- * @return socket se creazione andata a buon fine, -1 altrimenti
- */
-int initSocket(int numberOfClients);
 
 // Puntatore al file di log su cui scrivere le varie operazioni effettuate
 FILE* logFile = NULL;
@@ -55,13 +39,34 @@ typedef struct {
     int index; // indice assegnato al thread e riguardante il vettore della pool dei thread 
 } clientDescriptor;
 
-// Vettore che si occupa di gestire le informazioni dei thread quando si connettono e quando si disconnettono
+// Vettore che si occupa di gestire le informazioni dei thread quando si connettono e quando si disconnettono (threadPool)
 clientDescriptor *clientsInfo[MAX_CLIENTS];
 // Viene decrementata di un'unità ad ogni client che si connette
 int clients = MAX_CLIENTS;
 
 /**
- * @brief Gestisce la comunicazione con il client, il calcolo dell'operazione, la scrittura sul file di log delle operazioni richieste
+ * @brief Dato il messaggio ricevuto, viene effettuata l'operazione specificata con i due operandi forniti e restituito il messaggio 
+ * formattato da inviare
+ * 
+ * @param operazione vettore che contiene gli operandi e l'operazione da svolgere
+ * @return vettore contenente il risultato dell'operazione
+ */
+double* calcolaRisultato(double operazione[]);
+
+/**
+ * @brief Inizializza le strutture dati necessarie per l'apertura del socket e viene restiuito un socket in caso di successo,
+ *        -1 altrimenti
+ * 
+ * @param numberOfClients numero massimo di client da mettere in coda
+ 
+ * @return socket se creazione andata a buon fine, -1 altrimenti
+ */
+int initSocket(int numberOfClients);
+
+
+/**
+ * @brief Eseguita per ogni thread e gestisce la comunicazione con il client, il calcolo dell'operazione, 
+ *        la scrittura sul file di log delle operazioni richieste
  *  
  * @param clientInfo contiene l'indirizzo del client e il socket su cui leggere e scrivere
  */
@@ -127,7 +132,7 @@ void comunicazione(clientDescriptor *clientInfo) {
         risultatoFormattato[1] = invioRisposta.tv_sec + invioRisposta.tv_nsec / 1000000000.0;
         // Scrivo sul socket la risposta
         write(clientInfo -> socket, risultatoFormattato, sizeof(double) * 3);
-
+        // Rimuovo dalla memoria il risultato allocato dinamicamente
         free(risultatoFormattato);
     }
     
@@ -153,7 +158,7 @@ void comunicazione(clientDescriptor *clientInfo) {
 
 int main(int argc, char const *argv[])
 {
-    // Socket che rimanrrà in ascolto per accettare connessioni
+    // Socket che rimarrà in ascolto per accettare connessioni
     int serverSocket = -1;
     // Inizializzo il socket con numero di client nella coda pari a MAX_CLIENTS
     serverSocket = initSocket(MAX_CLIENTS);
@@ -162,14 +167,12 @@ int main(int argc, char const *argv[])
     if (serverSocket != -1)
     {
         // Vettore per salvere l'id di ogni thread
-        pthread_t tid[10];
-        // Vettore per salvare la struttura delle informazioni di ogni client connesso
+        pthread_t tid[MAX_CLIENTS];
         int sockApp;
         struct sockaddr_in addrApp;
-        // Indice per gestire i due vettori
         int clilen = sizeof(struct sockaddr_in);
 
-        // Messaggio da inviare per iniziare la comunicazione
+        // Messaggio di conferma inviare per iniziare la comunicazione
         int conferma = 0;        
         // Se l'apertura del file di log è avvenuta correttamente...
         if ((logFile = fopen("operazioni.log", "a")) != NULL)
@@ -180,7 +183,7 @@ int main(int argc, char const *argv[])
                 // Se l'inizializzazione della condition è avvenuta con successo...
                 if(pthread_cond_init(&condition, NULL) == 0) 
                 {
-                    // Il server è in continuo ascolto di nuove connessione da accettare
+                    // Il server è in ascolto continuo di nuove connessione da accettare
                     while((sockApp = accept(serverSocket, (struct sockaddr *)&addrApp, (socklen_t *)&clilen)) != 0) 
                     {   
                         // Se ho raggiunto il numero massimo di client attivi
@@ -227,7 +230,10 @@ double* calcolaRisultato(double operazione[]){
     // Conterrà il risultato dell'operazione formattato sotto forma di vettore
     double* risultatoFormattato = NULL;
     
-    // In base al carattere di operazione ricevuto (i char vengono visti come degli interi grazie al cast) calcolo il risultato
+    // In base al carattere di operazione ricevuto calcolo il risultato
+    /* Ogni carattere viene visto come un intero (rappresentazione ASCII) , ma siccome il carattere è salvato come double,
+       viene effettuato il cast per matchare i casi dello switch
+    */
     switch((int)operazione[0]){
         case '+':   risultatoOperazione = operazione[1] + operazione[2];
                     break;
@@ -258,10 +264,10 @@ int initSocket(int numberOfClients){
         // Inizializzo la struttura che descrive l'indirizzo del socket che ascolta le comunicazioni
         // La famiglia degli indirizzi è IPv4
         serverDescriptor.sin_family = AF_INET;
-        // La porta sulla quale avviene l'ascolto è la 9040
+        // La porta sulla quale avviene l'ascolto è PORTA
         serverDescriptor.sin_port = htons(PORTA);
         // L'ascolto avviene su tutte l'interfacce locali del server
-        serverDescriptor.sin_addr.s_addr = inet_addr("0.0.0.0"); // INADDR_ANY è la macro
+        serverDescriptor.sin_addr.s_addr = inet_addr(INTERFACCIA_ASCOLTO); // INADDR_ANY è la macro DI 0.0.0.0
 
         // Se l'associazione del socket allo spacename dell'indirizzo avviene corretta mente
         if(bind(serverSocket, (struct sockaddr*)&serverDescriptor, sizeof(serverDescriptor)) != -1)
