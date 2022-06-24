@@ -1,4 +1,4 @@
-# Socket calculator
+# A strange calculator
 Socket calculator is a simple client-server application where multiple clients can connect to a server in order to 
 send any math operations and get the results from the server.
 
